@@ -1,0 +1,9 @@
+[submodule "vendor/glm"]
+	path = vendor/glm
+	url = git@github.com:g-truc/glm.git
+[submodule "vendor/c-common"]
+	path = vendor/c-common
+	url = git@gitlab.com:WSWhitehouse/c-common.git
+[submodule "vendor/imgui"]
+	path = vendor/imgui
+	url = git@github.com:ocornut/imgui.git

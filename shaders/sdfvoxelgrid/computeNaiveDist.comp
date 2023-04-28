@@ -1,0 +1,131 @@
+#version 450
+#include "computeShared.glsl"
+
+// One triangle per thread...
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std140) readonly buffer UBOVoxelGridInput
+{
+  mat4 transform;
+
+// Voxel Grid Data
+  uvec4 cellCount; // w = x * y * z
+  vec3 gridOffset;
+  vec3 gridExtents;
+  vec3 cellSize;
+  float gridScale;
+
+// Mesh Geometry Data
+  uint indexCount;
+  uint indexFormat;
+} voxelGridInput;
+
+struct Vertex
+{
+  vec3 position;
+  vec3 normal;
+  vec3 colour;
+  vec2 texcoord;
+};
+
+// NOTE(WSWhitehouse): Variable Length Arrays must be placed inside their own buffers. GLSL does
+// not support byte arrays, so encoding the data in uint arrays instead that use bitwise operations
+// to get the necessary data out of them...
+layout(set = 0, binding = 1, std430) readonly buffer UBOVertexArray { Vertex vertices[]; };
+layout(set = 0, binding = 2, std430) readonly buffer UBOIndexArray  { uint indices[];  };
+layout(set = 0, binding = 3, r32f)   uniform image3D voxelGridImage;
+
+uint GetIndex(uint i)
+{
+  if (voxelGridInput.indexFormat == INDEX_FORMAT_16)
+  {
+    // NOTE(WSWhitehouse): This unpacks a 16 bit index from the 32 bit integer indices...
+    const uint uint32Index  = i / 2;
+    const uint uint16Offset = i % 2;
+    const uint encodedIndex = indices[uint32Index];
+    return (encodedIndex >> (16U * uint16Offset)) & 0xFFFFU;
+  }
+
+  return indices[i];
+}
+
+float sdfTriangle(vec3 point, vec3 a, vec3 b, vec3 c, vec3 normal)
+{
+  const vec3 ba = b     - a;
+  const vec3 pa = point - a;
+  const vec3 cb = c     - b;
+  const vec3 pb = point - b;
+  const vec3 ac = a     - c;
+  const vec3 pc = point - c;
+
+  const float paNormalDot = dot(normal, pa);
+
+  if (sign(dot(cross(ba, normal), pa)) +
+      sign(dot(cross(cb, normal), pb)) +
+      sign(dot(cross(ac, normal), pc)) < 2.0)
+  {
+    const vec3 min1 = ba * CLAMP01(dot(ba,pa) / dot(ba, ba)) - pa;
+    const vec3 min2 = cb * CLAMP01(dot(cb,pb) / dot(cb, cb)) - pb;
+    const vec3 min3 = ac * CLAMP01(dot(ac,pc) / dot(ac, ac)) - pc;
+
+    float dist = sqrt(min(min(dot(min1, min1),
+    dot(min2, min2)),
+    dot(min3, min3)));
+
+    dist = (paNormalDot < EPSILON) ? dist : -dist;
+    return dist;
+  }
+
+  float dist = sqrt(paNormalDot * paNormalDot / dot(normal, normal));
+  dist = (paNormalDot < EPSILON) ? dist : -dist;
+
+  return dist;
+}
+
+void main()
+{
+  const ivec3 cellCount    = ivec3(voxelGridInput.cellCount.xyz);
+  const int voxelIndex1D   = int(gl_GlobalInvocationID.x);
+  const ivec3 voxelIndex3D = INDEX_1D_TO_3D(voxelIndex1D, cellCount);
+
+  const vec3 voxelPos = vec3(voxelIndex3D);
+  const vec3 sdfPos   = vec3(cellCount) * 0.5;
+
+  // Go through all triangles and find the minimum distance
+  float dist = imageAtomicLoad(voxelGridImage, voxelIndex3D, gl_ScopeDevice, gl_StorageSemanticsImage, gl_SemanticsAcquire);
+  for (int i = 0; i < voxelGridInput.indexCount; i += 3)
+  {
+    // Get indices
+    const uint index0 = GetIndex(i + 0);
+    const uint index1 = GetIndex(i + 1);
+    const uint index2 = GetIndex(i + 2);
+
+    // Get vertices
+    const vec4 vert0 = voxelGridInput.transform * vec4(vertices[index0].position, 1.0);
+    const vec4 vert1 = voxelGridInput.transform * vec4(vertices[index1].position, 1.0);
+    const vec4 vert2 = voxelGridInput.transform * vec4(vertices[index2].position, 1.0);
+
+    // Transform vertices into grid position
+    const vec3 pos0 = voxelGridInput.gridScale * (vert0.xyz - voxelGridInput.gridOffset);
+    const vec3 pos1 = voxelGridInput.gridScale * (vert1.xyz - voxelGridInput.gridOffset);
+    const vec3 pos2 = voxelGridInput.gridScale * (vert2.xyz - voxelGridInput.gridOffset);
+
+    // Create Triangle
+    const vec3 a = sdfPos + pos0;
+    const vec3 b = sdfPos + pos1;
+    const vec3 c = sdfPos + pos2;
+    const vec3 normal = normalize(cross((b - a), (a - c)));
+
+    const float thisDist = sdfTriangle(voxelPos, a, b, c, normal);
+
+//    dist = min(dist, thisDist);
+
+    if (abs(thisDist) < abs(dist))
+    {
+      dist = thisDist;
+    }
+  }
+
+  imageAtomicStore(voxelGridImage, voxelIndex3D, dist, gl_ScopeDevice, gl_StorageSemanticsImage, gl_SemanticsRelease);
+}
+

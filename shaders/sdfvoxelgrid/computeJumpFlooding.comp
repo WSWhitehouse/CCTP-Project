@@ -1,0 +1,91 @@
+#version 450
+#include "computeShared.glsl"
+
+// One cell per thread...
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+layout(set = 0, binding = 0, std140) readonly buffer UBOVoxelGridInput
+{
+  uvec4 cellCount; // w = x * y * z
+  vec3 cellSize;
+  uint iteration;
+  uint jumpOffset;
+  float maxDist;
+} voxelGridInput;
+
+layout(set = 0, binding = 1, std140) buffer UBOActiveCells
+{
+  uint count;
+  uint8_t cells[];
+} activeCells;
+
+layout(set = 0, binding = 2, std140) buffer UBOUpdatedCells
+{
+  uint count;
+  uint8_t cells[];
+} updatedCells;
+
+layout(set = 0, binding = 3, r32f) uniform image3D voxelGridImage;
+
+float JumpSample(ivec3 centerCoord, ivec3 offset, float bestDistance)
+{
+  const ivec3 sampleCoord = centerCoord + offset;
+  float dist = imageAtomicLoad(voxelGridImage, sampleCoord, gl_ScopeDevice,
+                               gl_StorageSemanticsImage, gl_SemanticsAcquire).r;
+
+  if (dist < 0.0)
+  {
+    offset *= -1;
+    dist -= length(voxelGridInput.cellSize * vec3(offset));
+  }
+  else
+  {
+    dist += length(voxelGridInput.cellSize * vec3(offset));
+  }
+
+  if (abs(dist) < abs(bestDistance))
+  {
+    bestDistance = dist;
+  }
+
+  return bestDistance;
+}
+
+void main()
+{
+  const ivec3 cellCount    = ivec3(voxelGridInput.cellCount.xyz);
+  const int voxelIndex1D   = int(gl_GlobalInvocationID.x);
+  const ivec3 voxelIndex3D = ivec3(gl_GlobalInvocationID);//INDEX_1D_TO_3D(voxelIndex1D, cellCount);
+
+  float bestDistance = imageAtomicLoad(voxelGridImage, voxelIndex3D, gl_ScopeDevice,
+                                       gl_StorageSemanticsImage, gl_SemanticsAcquire).r;
+
+  [[unroll]]
+  for (int z = -1; z <= 1; ++z)
+  {
+    [[unroll]]
+    for (int y = -1; y <= 1; ++y)
+    {
+      [[unroll]]
+      for (int x = -1; x <= 1; ++x)
+      {
+        if (abs(bestDistance) < 0.001)
+        {
+          imageAtomicStore(voxelGridImage, voxelIndex3D, bestDistance, gl_ScopeDevice,
+                           gl_StorageSemanticsImage, gl_SemanticsRelease);
+          return;
+        }
+
+        bestDistance =
+          JumpSample(
+            voxelIndex3D,
+            ivec3(x, y, z) * int(voxelGridInput.jumpOffset),
+            bestDistance
+          );
+      }
+    }
+  }
+
+  imageAtomicStore(voxelGridImage, voxelIndex3D, bestDistance, gl_ScopeDevice,
+                   gl_StorageSemanticsImage, gl_SemanticsRelease);
+}
