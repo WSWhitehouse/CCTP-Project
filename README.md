@@ -5,7 +5,7 @@ Snowflake is a C++ Vulkan engine with the ability to render Signed Distance Fiel
 ### Cloning The Repo
 Clone the repo recursively to ensure all submodules are initialised:
 ```shell
-git clone --recursive git@gitlab.com:WSWhitehouse/snowflake.git
+git clone --recursive git@github.com:WSWhitehouse/CCTP-Project.git
 ```
 
 If the repo wasn't cloned using `--recursive` use the following commands to update the submodules:
