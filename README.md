@@ -46,3 +46,7 @@ cd cmake-build & snowflake.exe
 before launching the executable** to ensure the data is initialised and all shaders have been compiled. If these targets haven't 
 been run, the engine will crash as it won't be able to find the relative files.*
 
+# Branches
++ `voxel-grid` - Showcases the naive voxel grid approach.
++ `voxel-grid-jump-flooding` - Showcases the jump flooding voxel grid approach.
++ `bsp-tree` - Showcases the bsp tree approach.
