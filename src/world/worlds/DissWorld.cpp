@@ -62,22 +62,9 @@ void DissWorld::Init(ECS::Manager& ecs)
 
     ecs.AddComponent<Camera>(camera);
     ecs.AddComponent<FlyCam>(camera);
-
-//    SkyboxCreateInfo createInfo =
-//      {
-//        .texturePathPosX = "data/yokohama/posx.jpg",
-//        .texturePathNegX = "data/yokohama/negx.jpg",
-//        .texturePathPosY = "data/yokohama/posy.jpg",
-//        .texturePathNegY = "data/yokohama/negy.jpg",
-//        .texturePathPosZ = "data/yokohama/posz.jpg",
-//        .texturePathNegZ = "data/yokohama/negz.jpg"
-//      };
-
-//    Skybox* skybox = ecs.AddComponent<Skybox>(camera);
-//    ComponentFactory::SkyboxCreate(skybox, createInfo);
   }
 
-  // TODO(WSWhitehouse): Clean up mesh... its currently a mem leak.
+  // Uncomment one to choose a mesh... WARNING: Larger meshes can take a significant amount of time to generate
 //  Mesh* testMesh = AssetDatabase::LoadMesh("data/bunny.glb");
 //  const Mesh* testMesh = AssetDatabase::LoadMesh("data/test-obj.glb");
 //  const Mesh* testMesh = AssetDatabase::LoadMesh("data/low-poly-sphere.glb");
@@ -89,43 +76,6 @@ void DissWorld::Init(ECS::Manager& ecs)
 
   LOG_DEBUG("Vertex Count: %u, Index Count: %u, Triangle Count: %u",
             testMesh->geometryArray[0].vertexCount, testMesh->geometryArray[0].indexCount, testMesh->geometryArray[0].indexCount / 3);
-
-//  sdfRenderer = ecs.CreateEntity();
-//  {
-//    Transform* transform = ecs.AddComponent<Transform>(sdfRenderer);
-//    transform->position  = {0.0f, 0.0f, 0.0f};
-//    transform->scale     = {1.0f, 1.0f, 1.0f};
-//
-//    SdfRenderer* renderer = ecs.AddComponent<SdfRenderer>(sdfRenderer);
-//
-//    {
-//      PROFILE_FUNC
-//      ComponentFactory::SdfRendererCreate(ecs, renderer, testMesh);
-//    }
-//  }
-
-//  PointCloud cloud = {};
-//  cloud.GenerateFromMesh(testMesh);
-
-//  ECS::Entity pointCloud = ecs.CreateEntity();
-//  {
-//    Transform* transform = ecs.AddComponent<Transform>(pointCloud);
-//    transform->position  = {0.0f, 0.0f, 4.5f};
-//    transform->scale     = {1.0f, 1.0f, 1.0f};
-//
-//    PointCloudRenderer* renderer = ecs.AddComponent<PointCloudRenderer>(pointCloud);
-//    ComponentFactory::PointCloudRendererCreate(renderer, &cloud);
-//  }
-
-//  sdfRenderer = ecs.CreateEntity();
-//  {
-//    Transform* transform = ecs.AddComponent<Transform>(sdfRenderer);
-//    transform->position  = {0.0f, 0.0f, 0.0f};
-//    transform->scale     = {1.0f, 1.0f, 1.0f};
-//
-//    SdfPointCloudRenderer* renderer = ecs.AddComponent<SdfPointCloudRenderer>(sdfRenderer);
-//    ComponentFactory::SdfPointCloudRendererCreate(renderer, &cloud);
-//  }
 
   pointLight = ecs.CreateEntity();
   {
@@ -146,13 +96,14 @@ void DissWorld::Init(ECS::Manager& ecs)
 
     SdfVoxelGrid* voxelGrid = ecs.AddComponent<SdfVoxelGrid>(sdfVoxelGrid);
 
+    // Uncomment one to choose a resolution
 //    glm::vec3 cellCount = glm::vec3{1024, 1024, 1024};
-    glm::vec3 cellCount = glm::vec3{512, 512, 512};
+//    glm::vec3 cellCount = glm::vec3{512, 512, 512};
 //    glm::vec3 cellCount = glm::vec3{256, 256, 256};
-//    glm::vec3 cellCount = glm::vec3{128, 128, 128};
+    glm::vec3 cellCount = glm::vec3{128, 128, 128};
 //    glm::vec3 cellCount = glm::vec3{64, 64, 64};
 //    glm::vec3 cellCount = glm::vec3{32, 32, 32};
-    SdfVoxelGrid::Create(voxelGrid, true, testMesh, cellCount);
+    SdfVoxelGrid::Create(voxelGrid, false, testMesh, cellCount);
   }
   SdfVoxelGrid::CleanUpComputePipeline();
 }
@@ -161,20 +112,6 @@ void DissWorld::Shutdown(ECS::Manager& ecs)
 {
   SdfVoxelGrid* voxelGrid = ecs.GetComponent<SdfVoxelGrid>(sdfVoxelGrid);
   SdfVoxelGrid::Release(voxelGrid);
-
-//  SdfRenderer* renderer = ecs.GetComponent<SdfRenderer>(sdfRenderer);
-//  ComponentFactory::SdfRendererDestroy(renderer);
-
-//  for (u32 i = 0; i < meshEntities.Size(); ++i)
-//  {
-//    MeshRenderer* meshRenderer = ecs.GetComponent<MeshRenderer>(meshEntities[i].entity);
-//    ComponentFactory::MeshRendererDestroy(meshRenderer);
-//  }
-
-//  meshEntities.Destroy();
-
-  Skybox* skybox = ecs.GetComponent<Skybox>(camera);
-  ComponentFactory::SkyboxDestroy(skybox);
 }
 
 void DissWorld::Update(ECS::Manager& ecs)
@@ -199,39 +136,6 @@ void DissWorld::Update(ECS::Manager& ecs)
     ImGui::InputFloat3("position", glm::value_ptr(transform->position));
     ImGui::ColorPicker3("colour", glm::value_ptr(light->colour));
     ImGui::InputFloat("range", &light->range);
-    ImGui::End();
-  }
-
-//  {
-//    Transform* transform = ecs.GetComponent<Transform>(sdfRenderer);
-//
-//    ImGui::Begin("SDF Renderer");
-//    ImGui::InputFloat3("Position", glm::value_ptr(transform->position));
-//    ImGui::SliderFloat3("Rotation", glm::value_ptr(transform->rotation), 0.0f, 360.0f);
-//    ImGui::InputFloat3("Scale", glm::value_ptr(transform->scale));
-//    ImGui::End();
-//  }
-
-  // Voxel Grid Gizmos
-  {
-//    const Transform* transform    = ecs.GetComponent<Transform>(sdfVoxelGrid);
-//    SdfVoxelGrid* voxelGrid = ecs.GetComponent<SdfVoxelGrid>(sdfVoxelGrid);
-//    Gizmos::DrawWireCube(transform->position, voxelGrid->gridExtent * 0.5f, glm::identity<glm::quat>());
-  }
-
-  for (u32 i = 0; i < meshEntities.Size() && i < 10; ++i)
-  {
-    Transform* transform       = ecs.GetComponent<Transform>(meshEntities[i].entity);
-    MeshRenderer* meshRenderer = ecs.GetComponent<MeshRenderer>(meshEntities[i].entity);
-
-    char name[40] = "Mesh";
-    sprintf(name, "Mesh %u %s", i, meshEntities[i].isLeaf ? "(Geometry)" : "(Plane)");
-
-    ImGui::Begin(name);
-    ImGui::Checkbox("Render", &meshRenderer->renderMesh);
-    ImGui::InputFloat3("Position", glm::value_ptr(transform->position));
-    ImGui::SliderFloat3("Rotation", glm::value_ptr(transform->rotation), 0.0f, 360.0f);
-    ImGui::InputFloat3("Scale", glm::value_ptr(transform->scale));
     ImGui::End();
   }
 }
