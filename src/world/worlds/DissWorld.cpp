@@ -98,12 +98,12 @@ void DissWorld::Init(ECS::Manager& ecs)
 
     // Uncomment one to choose a resolution
 //    glm::vec3 cellCount = glm::vec3{1024, 1024, 1024};
-//    glm::vec3 cellCount = glm::vec3{512, 512, 512};
+    glm::vec3 cellCount = glm::vec3{512, 512, 512};
 //    glm::vec3 cellCount = glm::vec3{256, 256, 256};
-    glm::vec3 cellCount = glm::vec3{128, 128, 128};
+//    glm::vec3 cellCount = glm::vec3{128, 128, 128};
 //    glm::vec3 cellCount = glm::vec3{64, 64, 64};
 //    glm::vec3 cellCount = glm::vec3{32, 32, 32};
-    SdfVoxelGrid::Create(voxelGrid, false, testMesh, cellCount);
+    SdfVoxelGrid::Create(voxelGrid, true, testMesh, cellCount);
   }
   SdfVoxelGrid::CleanUpComputePipeline();
 }
